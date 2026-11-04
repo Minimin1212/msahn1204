@@ -1,0 +1,184 @@
+@page {
+  size: A4;
+  margin: 18mm 16mm;
+}
+@media print {
+  body,
+  body.pinned {
+    padding: 0;
+    color: #111;
+    background: white;
+    font-size: 10.5pt;
+    line-height: 1.65;
+  }
+  .skip-link,
+  .toc,
+  .toolbar,
+  .citation-toggle,
+  .technical-diagnostics,
+  #source-panel,
+  .export-status {
+    display: none !important;
+  }
+  .layout,
+  body.pinned .layout {
+    display: block;
+    padding: 0;
+    max-width: none;
+  }
+  .masthead {
+    padding: 0 0 5mm;
+  }
+  h1 {
+    font-size: 25pt;
+  }
+  h2 {
+    font-size: 16pt;
+    break-after: avoid;
+  }
+  h3 {
+    break-after: avoid;
+  }
+  section {
+    margin-bottom: 5mm;
+    padding-bottom: 4mm;
+  }
+  .overview {
+    background: #f3f3ef;
+  }
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+  section > p:has(> .citations) {
+    break-inside: avoid;
+  }
+  .citations {
+    display: inline;
+  }
+  .citation-overflow,
+  .citation-overflow[hidden] {
+    display: inline !important;
+  }
+  a.ts {
+    display: inline;
+    min-width: 0;
+    min-height: 0;
+    padding: 0.05rem 0.2rem;
+  }
+  .citations a + a {
+    margin-inline-start: 0.4rem;
+  }
+  a {
+    color: #7c2920;
+  }
+  .table-wrap,
+  pre {
+    overflow: visible;
+  }
+  table {
+    font-size: 8.5pt;
+    table-layout: fixed;
+  }
+  thead {
+    display: table-header-group;
+  }
+  th,
+  td {
+    overflow-wrap: anywhere;
+    padding: 2mm;
+  }
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 8.5pt;
+  }
+  figure {
+    margin: 4mm 0;
+    break-inside: avoid;
+  }
+  /* A long on-screen text table may continue on the next page; the image stays with its
+     caption and the start of the table, and rows stay whole. */
+  figure:has(> table.screen-text) {
+    break-inside: auto;
+  }
+  figure:has(> table.screen-text) > img,
+  figure:has(> table.screen-text) > figcaption {
+    break-inside: avoid;
+    break-after: avoid;
+  }
+  table.screen-text tr {
+    break-inside: avoid;
+  }
+  /* The translated copy carries the text in print; the pair fits the page width. */
+  .screen-figure {
+    width: auto;
+  }
+  .screen-text-list {
+    display: none;
+  }
+  img {
+    max-height: 180mm;
+    object-fit: contain;
+  }
+  .cited-frames {
+    display: block;
+    break-after: avoid;
+  }
+  .cited-frames figure {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 2mm);
+    margin: 0 2mm 4mm 0;
+  }
+  .diagram-wrap svg {
+    width: 100%;
+    max-width: 640px;
+  }
+  .source-notes {
+    break-inside: avoid;
+    break-before: avoid;
+  }
+  .limitations:has(+ .source-notes),
+  .limitations:has(+ .source-notes) > ul,
+  .limitations:has(+ .source-notes) > p:last-child {
+    break-after: avoid;
+  }
+  .limitations:has(+ .source-notes) > ul > li:last-child {
+    break-inside: avoid;
+  }
+  .limitations:has(+ .source-notes) > ul > li:nth-last-child(2) {
+    break-inside: avoid;
+    break-after: avoid;
+  }
+  .source-notes .references {
+    margin-bottom: 0;
+    padding-bottom: 2mm;
+  }
+  footer p {
+    margin-bottom: 2mm;
+  }
+  .source-notes .references h2,
+  .source-notes .references p,
+  footer summary {
+    display: inline;
+  }
+  .source-notes .references h2 {
+    margin-inline-end: 0.4rem;
+  }
+  footer details {
+    display: contents;
+  }
+  footer summary {
+    min-height: 0;
+  }
+  figcaption {
+    break-before: avoid;
+  }
+  .references,
+  .limitations,
+  footer {
+    font-size: 8.5pt;
+  }
+}

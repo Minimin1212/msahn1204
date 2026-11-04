@@ -1,0 +1,331 @@
+import path from "node:path";
+import { readdir, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { readFile } from "node:fs/promises";
+import {
+  AppError,
+  artifact,
+  atomicWrite,
+  checkOutputRoots,
+  containedFile,
+  exists,
+  fileHash,
+  jsonBytes,
+  readJson,
+  sha256,
+} from "./io.mjs";
+import { htmlDocument } from "./rendering.mjs";
+import { statements } from "./validation.mjs";
+
+export const filenames = Object.freeze({
+  html: "index.html",
+  markdown: "report.md",
+  pdf: "report.pdf",
+});
+const RENDERER_PARTS = ["lib", "templates", "schemas", "scripts"];
+let rendererCache = null;
+/**
+ * Identity of the code that produces outputs: SHA-256 over every runtime file of this
+ * skill (lib, templates, schemas, scripts, package.json) in sorted path order. Recorded in
+ * each public manifest so `scripts/verify-output.mjs` can tell whether a revision was made
+ * by this installed skill or by a modified copy. Tamper-evident, not tamper-proof.
+ */
+export async function rendererIdentity() {
+  if (rendererCache) return rendererCache;
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const files = ["package.json"];
+  for (const dir of RENDERER_PARTS)
+    for (const entry of await readdir(path.join(root, dir), {
+      recursive: true,
+      withFileTypes: true,
+    }))
+      if (entry.isSymbolicLink())
+        // A link's referent can change without changing anything hashed here, so the
+        // runtime tree must hold regular files only (install copies resolve to files).
+        throw new AppError(
+          "UNSAFE_PATH",
+          `The skill's runtime tree contains a symlink (${path.relative(root, path.join(entry.parentPath ?? entry.path, entry.name))}); renderer identity cannot cover it.`,
+        );
+      else if (entry.isFile())
+        files.push(
+          path.relative(
+            root,
+            path.join(entry.parentPath ?? entry.path, entry.name),
+          ),
+        );
+  files.sort();
+  const hash = createHash("sha256");
+  for (const file of files) {
+    hash.update(`${file.split(path.sep).join("/")}\0`);
+    hash.update(await readFile(path.join(root, file)));
+    hash.update("\0");
+  }
+  let pkg = {};
+  try {
+    pkg = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+  } catch {
+    // The bytes are still in the hash; only the display name/version is lost.
+  }
+  rendererCache = {
+    name: pkg.name ?? "playback-notes",
+    version: pkg.version ?? null,
+    sha256: hash.digest("hex"),
+  };
+  return rendererCache;
+}
+/**
+ * A fresh revision starts in an empty directory (checked under the writer lock), so until
+ * its manifest is committed everything in it belongs to the current attempt. On failure the
+ * attempt removes all of it (the lock excepted) so a corrected retry can reuse the directory
+ * and nothing partial can be inherited. Committed revisions are never touched here.
+ */
+function noteLeftovers(error, leftovers) {
+  // The directory stays fail-closed (a retry sees OUTPUT_EXISTS); say what to remove.
+  if (!leftovers.length || !error || typeof error !== "object") return;
+  const note = ` Cleanup could not remove: ${leftovers.slice(0, 5).join(", ")}${leftovers.length > 5 ? ", …" : ""}; remove them before retrying in this directory.`;
+  // A filesystem error (ENOSPC, EACCES) keeps its own message private (the CLI never echoes
+  // it); the cleanup note is ours, so it travels separately and the CLI appends it.
+  if (error instanceof AppError) error.message += note;
+  else error.cleanupNote = note;
+}
+export async function abandonFreshOutput(out) {
+  // Best effort over every entry; failures are returned, never thrown, so the error that
+  // triggered the abandonment is the one the caller reports.
+  const leftovers = [];
+  let names = [];
+  try {
+    names = await readdir(out);
+  } catch {
+    return [out];
+  }
+  for (const name of names)
+    if (name !== ".write.lock")
+      try {
+        await rm(path.join(out, name), { recursive: true, force: true });
+      } catch {
+        leftovers.push(name);
+      }
+  return leftovers;
+}
+export async function initializeOutput(bundle, options) {
+  if (!options["out-dir"])
+    throw new AppError("INVALID_CONTRACT", "Missing --out-dir.", 4);
+  const inputs = [
+    options.request,
+    options.evidence,
+    options.analysis,
+    options.report,
+    bundle.request.transcriptFile,
+    bundle.request.source.kind === "local" ? bundle.request.source.value : null,
+  ];
+  const { out } = await checkOutputRoots(
+    bundle.workDir,
+    options["out-dir"],
+    inputs,
+  );
+  const artifacts = [],
+    assets = [];
+  let media = null;
+  const analysisSha256 = sha256(jsonBytes(bundle.analysis));
+  const publishTranscript = bundle.request.policy.publishTranscript !== false;
+  const renderer = await rendererIdentity();
+  const manifestPath = path.join(out, "manifest.json");
+  let prior = null;
+  if (await exists(manifestPath)) {
+    prior = (await readJson(manifestPath)).data;
+    if (
+      prior.reportSha256 !== bundle.reportSha256 ||
+      prior.evidenceSha256 !== bundle.evidenceSha256
+    )
+      throw new AppError(
+        "EVIDENCE_MISMATCH",
+        "Different report/evidence requires a new output revision.",
+      );
+    if (
+      prior.analysisSha256 !== analysisSha256 ||
+      prior.copyLocalMedia !== bundle.request.policy.copyLocalMedia ||
+      prior.publishTranscript !== publishTranscript ||
+      prior.renderer?.sha256 !== renderer.sha256 ||
+      JSON.stringify(prior.requestedFormats) !==
+        JSON.stringify(bundle.request.formats)
+    )
+      throw new AppError(
+        "EVIDENCE_MISMATCH",
+        "Changed analysis, sharing policy or formats requires a new output revision. Existing revisions are not modified.",
+      );
+    if (Array.isArray(prior.artifacts)) {
+      for (const entry of prior.artifacts) {
+        if (
+          !filenames[entry.format] ||
+          entry.path !== filenames[entry.format] ||
+          !["created", "reused"].includes(entry.status)
+        )
+          continue;
+        const actual = await artifact(out, entry.path, entry.format, "reused");
+        if (actual.sha256 !== entry.sha256)
+          throw new AppError(
+            "EVIDENCE_MISMATCH",
+            "Existing output has changed outside this job.",
+          );
+        artifacts.push(actual);
+      }
+    }
+  } else if ((await readdir(out)).some((name) => name !== ".write.lock")) {
+    // A fresh revision starts from an empty directory: anything else (a report, assets or
+    // media from another or an interrupted attempt) is unowned and must not be joined.
+    throw new AppError(
+      "OUTPUT_EXISTS",
+      "Unowned output files exist. Choose an empty output directory.",
+    );
+  }
+  // Every frame the report cites (figure or inline citation) ships with the output.
+  const citedFrames = new Set([
+    ...bundle.report.sections
+      .flatMap((s) => s.blocks)
+      .filter((b) => b.type === "figure")
+      .map((b) => b.frameId),
+    ...statements(bundle.report).flatMap((s) =>
+      s.citations.filter((c) => c.kind === "frame").map((c) => c.id),
+    ),
+  ]);
+  const fresh = prior === null;
+  let imageBytes = 0;
+  try {
+    for (const frame of bundle.evidence.frames.filter((f) =>
+      citedFrames.has(f.id),
+    )) {
+      const file = await containedFile(
+        bundle.workDir,
+        frame.assetPath,
+        20 * 1024 * 1024,
+      );
+      const bytes = await readFile(file);
+      if (sha256(bytes) !== frame.sha256)
+        throw new AppError(
+          "EVIDENCE_MISMATCH",
+          "Frame changed during rendering.",
+        );
+      imageBytes += bytes.length;
+      if (imageBytes > 128 * 1024 * 1024)
+        throw new AppError(
+          "RESOURCE_LIMIT",
+          "Referenced images exceed the output asset budget.",
+        );
+      if (fresh) {
+        await atomicWrite(out, frame.assetPath, bytes);
+        assets.push(await artifact(out, frame.assetPath, "image"));
+      } else {
+        const committed = prior.assets?.find((entry) => entry.path === frame.assetPath);
+        if (committed?.sha256 !== frame.sha256)
+          throw new AppError("EVIDENCE_MISMATCH", "Existing image inventory differs from this evidence.");
+        const existing = await artifact(out, frame.assetPath, "image", "reused");
+        if (existing.sha256 !== committed.sha256)
+          throw new AppError("EVIDENCE_MISMATCH", "Existing image changed outside this job.");
+        assets.push(existing);
+      }
+    }
+    if (
+      bundle.request.policy.copyLocalMedia &&
+      bundle.evidence.source.playback.locator?.startsWith("media:")
+    ) {
+      const privateManifest = (
+        await readJson(path.join(bundle.workDir, "manifest.json"))
+      ).data;
+      if (
+        privateManifest.evidenceSha256 !== bundle.evidenceSha256 ||
+        !privateManifest.mediaPath ||
+        (await fileHash(privateManifest.mediaPath)) !==
+          privateManifest.mediaSha256
+      )
+        throw new AppError(
+          "EVIDENCE_MISMATCH",
+          "Local media no longer matches the acquired evidence.",
+        );
+      const relative = `media/${bundle.evidence.source.id}`;
+      if (fresh) {
+        // Large media is streamed once, rather than copied again for every export.
+        const { copyMedia } = await import("./media-copy.mjs");
+        await copyMedia(privateManifest.mediaPath, out, relative,
+          bundle.request.policy.maxDownloadBytes, privateManifest.mediaSha256);
+        media = await artifact(out, relative, "media");
+      } else {
+        if (prior.media?.path !== relative || prior.media.sha256 !== privateManifest.mediaSha256)
+          throw new AppError("EVIDENCE_MISMATCH", "Existing media inventory differs from the acquired evidence.");
+        media = await artifact(out, relative, "media", "reused");
+        if (media.sha256 !== prior.media.sha256)
+          throw new AppError("EVIDENCE_MISMATCH", "Existing media changed outside this job.");
+      }
+    }
+  } catch (error) {
+    if (fresh) noteLeftovers(error, await abandonFreshOutput(out));
+    throw error;
+  }
+  const manifest = {
+    schemaVersion: 1,
+    sourceId: bundle.evidence.source.id,
+    mode: bundle.report.mode,
+    revision: path.basename(out),
+    reportSha256: bundle.reportSha256,
+    evidenceSha256: bundle.evidenceSha256,
+    analysisSha256,
+    contentStatus:
+      bundle.evidence.extraction.status === "partial" ||
+      bundle.analysis.status === "partial"
+        ? "partial"
+        : "complete",
+    requestedFormats: bundle.request.formats,
+    copyLocalMedia: bundle.request.policy.copyLocalMedia,
+    publishTranscript,
+    renderer,
+    assets,
+    media,
+    artifacts,
+    issues: [],
+    overallStatus: "incomplete",
+  };
+  return { out, manifest, fresh };
+}
+/**
+ * Run a render/export transaction: on any failure before the manifest commit, a fresh
+ * revision is abandoned (directory emptied), an existing revision is left as it was.
+ */
+export async function outputTransaction(bundle, options, body) {
+  const context = await initializeOutput(bundle, options);
+  try {
+    return await body(context);
+  } catch (error) {
+    if (context.fresh)
+      noteLeftovers(error, await abandonFreshOutput(context.out));
+    throw error;
+  }
+}
+export function setArtifact(manifest, entry) {
+  manifest.artifacts = manifest.artifacts.filter(
+    (item) => item.format !== entry.format,
+  );
+  manifest.artifacts.push(entry);
+}
+export async function finalizeOutput(bundle, context, { html = true } = {}) {
+  const { out, manifest } = context;
+  for (const format of manifest.requestedFormats)
+    if (!manifest.artifacts.some((a) => a.format === format))
+      setArtifact(manifest, { format, path: null, status: "blocked" });
+  if (html && bundle.request.formats.includes("html")) {
+    await atomicWrite(
+      out,
+      "index.html",
+      htmlDocument(bundle, manifest.artifacts, manifest.issues),
+    );
+    setArtifact(manifest, await artifact(out, "index.html", "html"));
+  }
+  manifest.overallStatus = manifest.requestedFormats.every((format) =>
+    manifest.artifacts.some(
+      (a) => a.format === format && ["created", "reused"].includes(a.status),
+    ),
+  )
+    ? "completed"
+    : "incomplete";
+  await atomicWrite(out, "manifest.json", jsonBytes(manifest));
+  return manifest;
+}

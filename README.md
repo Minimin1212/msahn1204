@@ -34,7 +34,20 @@ matplotlib로 학술지 수준의 막대그래프, 추세선, 히트맵, 레이�
 - "이 데이터로 모델 성능 비교 막대그래프를 논문용으로 그려줘. PNG와 PDF로 저장해줘"
 - "월별 추이를 논문용 선 그래프로 그려줘"
 
+## 영상·팟캐스트 요약 (playback-notes 스킬)
+
+`.claude/skills/playback-notes/`에 [playback-notes](https://github.com/AgwaB/playback-notes)가 들어 있습니다.
+강의, 학회 발표, 팟캐스트를 요약 보고서(HTML, Markdown, PDF)로 만들고, 모든 내용에 녹화의 시간 표시를 달아 줍니다.
+세션이 시작될 때 `.claude/hooks/session-start.sh`가 Node.js 24와 필요한 패키지를 자동으로 설치합니다.
+
+예시 요청:
+- "첨부한 강의 자막 파일로 핵심 요약 보고서 만들어줘" (SRT, VTT, TXT)
+- "첨부한 발표 영상 깊이 있게 분석해서 PDF로 줘"
+
+유튜브, X, Apple Podcasts 링크를 쓰려면 클라우드 환경 설정의 네트워크 허용 도메인에
+`www.youtube.com` 등을 추가해야 합니다.
+
 ## 참고
 
-- 라이선스: ARS와 scientific-figure-making 모두 CC BY-NC 4.0 (비상업적 이용만 가능)
+- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT
 - 한국어 문서: https://github.com/Imbad0202/academic-research-skills/blob/main/README.ko-KR.md

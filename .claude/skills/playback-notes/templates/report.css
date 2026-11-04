@@ -1,0 +1,552 @@
+/* Report palette: a warm paper surface, near-black ink and one accent for timestamps. */
+:root {
+  --surface: #faf9f6;
+  --surface-2: #efeeea;
+  --ink: #1b1b1b;
+  --muted: #5a5a5a;
+  --rule: #dcdcd7;
+  --rule-soft: #e4e4df;
+  --accent: #b5382b;
+  --accent-tint: #fbe8e5;
+}
+a.ts {
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--accent);
+  font:
+    0.82rem / 1 system-ui,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+* {
+  box-sizing: border-box;
+}
+/* Each paragraph takes the direction of its own text: English interface text in an
+   Arabic report (or an Arabic quote in an English one) keeps its punctuation in place. */
+p,
+li,
+td,
+th,
+figcaption,
+h1,
+h2,
+h3,
+h4,
+summary {
+  unicode-bidi: plaintext;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--surface);
+  font:
+    17px / 1.8 system-ui,
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    sans-serif;
+  overflow-wrap: anywhere;
+}
+/* Korean breaks between words (spaces), not inside them; overlong runs still wrap. */
+html:lang(ko) body {
+  word-break: keep-all;
+}
+a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+button,
+input {
+  font: inherit;
+}
+button,
+.toolbar a {
+  cursor: pointer;
+  border: 1px solid var(--rule);
+  border-radius: 0.55rem;
+  padding: 0.4rem 0.8rem;
+  color: inherit;
+  background: transparent;
+  text-decoration: none;
+}
+button:hover,
+.toolbar a:hover {
+  background: var(--accent-tint);
+}
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+[hidden] {
+  display: none !important;
+}
+.skip-link {
+  position: absolute;
+  top: -5rem;
+  left: 1rem;
+  background: white;
+  z-index: 100;
+}
+.skip-link:focus {
+  top: 1rem;
+}
+.masthead {
+  max-width: 1080px;
+  margin: auto;
+  padding: 3.5rem 2rem 2rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.eyebrow {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+h1 {
+  margin: 0.6rem 0;
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+}
+h2 {
+  font-size: 1.35rem;
+  line-height: 1.4;
+  margin: 0 0 1rem;
+}
+h3 {
+  font-size: 1rem;
+}
+h1,
+h2,
+h3,
+.diagram-title {
+  text-wrap: balance;
+}
+.metadata,
+.untimed {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.toolbar {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0.8rem;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 760px);
+  gap: 2.5rem;
+  max-width: 1080px;
+  margin: auto;
+  padding: 2rem;
+}
+.toc {
+  position: sticky;
+  top: 1.5rem;
+  height: fit-content;
+  max-height: 90vh;
+  overflow: auto;
+  font-size: 0.82rem;
+}
+.toc summary {
+  font-weight: 700;
+  cursor: pointer;
+}
+ol.topics {
+  list-style: none;
+  padding: 0;
+}
+ol.topics li {
+  margin: 0.4rem 0;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 2px solid transparent;
+}
+ol.topics li.active {
+  border-inline-start-color: var(--accent);
+  font-weight: 650;
+}
+ol.topics a {
+  color: inherit;
+  text-decoration: none;
+}
+section {
+  scroll-margin-top: 2rem;
+  padding-bottom: 1.8rem;
+  margin-bottom: 1.8rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+p {
+  margin: 0 0 1rem;
+}
+p,
+li {
+  text-wrap: pretty;
+}
+.source-phrase {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: baseline;
+  white-space: normal;
+}
+li {
+  margin-bottom: 0.6rem;
+}
+.overview {
+  background: var(--surface-2);
+  padding: 1.4rem;
+  border-radius: 0.8rem;
+}
+.citations {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  vertical-align: baseline;
+  margin-inline-start: 0.35rem;
+}
+a.ts,
+.citation-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 28px;
+  padding: 0.2rem 0.4rem;
+  background: var(--accent-tint);
+  border-radius: 0.35rem;
+}
+.citation-toggle {
+  border: 0;
+  color: var(--muted);
+  background: var(--surface-2);
+  font:
+    0.75rem / 1 system-ui,
+    sans-serif;
+}
+.citation-overflow {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+.technical-diagnostics {
+  padding-inline-start: 1.2rem;
+}
+footer summary {
+  cursor: pointer;
+  min-height: 32px;
+}
+footer details[open] summary {
+  margin-bottom: 0.6rem;
+}
+.badge {
+  display: inline-block;
+  color: var(--muted);
+  font: 0.7rem / 1.5 system-ui;
+  border: 1px solid var(--rule);
+  border-radius: 0.3rem;
+  padding: 0.1rem 0.35rem;
+  margin-inline-end: 0.4rem;
+}
+blockquote {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-inline-start: 3px solid var(--accent);
+  background: var(--surface-2);
+}
+.quote-speaker {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.table-wrap {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+figure.diagram {
+  margin: 1.25rem 0;
+}
+.cited-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+.cited-frames h2 {
+  grid-column: 1 / -1;
+}
+.cited-frames figure {
+  margin: 0;
+}
+.cited-frames img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: 0.3rem;
+}
+.diagram-title {
+  margin: 0 0 0.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.diagram-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 0.3rem;
+}
+.diagram-wrap svg {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  margin: 0 auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.88rem;
+}
+th,
+td {
+  border: 1px solid var(--rule-soft);
+  padding: 0.65rem;
+  text-align: start;
+  vertical-align: top;
+}
+th {
+  background: var(--surface-2);
+}
+pre {
+  overflow: auto;
+  padding: 1rem;
+  background: var(--surface-2);
+  border-radius: 0.5rem;
+  line-height: 1.5;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+figure {
+  margin: 1.5rem 0;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+figcaption {
+  font-size: 0.8rem;
+  margin-top: 0.6rem;
+  color: var(--muted);
+}
+/* On-screen text beside its translation, under the figure it was read from. */
+table.screen-text {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  table-layout: fixed;
+}
+table.screen-text th,
+table.screen-text td {
+  padding: 0.35rem 0.55rem;
+  width: 50%;
+  overflow-wrap: anywhere;
+}
+table.screen-text td:first-child {
+  color: var(--muted);
+}
+/* A frame beside a copy with its text translated in place; on wide screens the pair
+   reaches past the text column (but not past the viewport) so both stay readable. */
+.screen-figure {
+  width: min(1180px, max(100%, min(50vw + 230px, 100vw - 310px)));
+}
+body.pinned .screen-figure {
+  width: auto;
+}
+.screen-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.screen-shot {
+  position: relative;
+  container-type: inline-size;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+.screen-shot img {
+  border-radius: 0;
+}
+.screen-translated span {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 0.15em;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  font-weight: 500;
+}
+.screen-label {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.screen-text-list {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+}
+.screen-text-list summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+@media (max-width: 760px) {
+  .screen-figure {
+    width: auto;
+  }
+  .screen-pair {
+    grid-template-columns: 1fr;
+  }
+}
+.limitations,
+.references,
+footer {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+#source-panel {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(480px, calc(100vw - 2rem));
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.8rem;
+  background: var(--surface);
+  box-shadow: 0 15px 60px #0003;
+  z-index: 20;
+}
+.panel-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.panel-toolbar h2 {
+  font-size: 0.95rem;
+  margin: 0;
+  flex: 1;
+}
+.panel-toolbar button,
+.follow-control {
+  font-size: 0.75rem;
+}
+#player-slot {
+  margin-top: 0.8rem;
+}
+#player-slot iframe,
+#player-slot video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  background: #111;
+  display: block;
+}
+#player-slot audio {
+  width: 100%;
+}
+#player-status {
+  font-size: 0.8rem;
+}
+#transcript {
+  margin-top: 0.75rem;
+  max-height: 35vh;
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+#transcript p {
+  padding: 0.5rem;
+  border-inline-start: 2px solid transparent;
+}
+#transcript p.current {
+  background: var(--accent-tint);
+  border-inline-start-color: var(--accent);
+}
+.transcript-time {
+  font: 0.7rem monospace;
+  margin-inline-end: 0.5rem;
+  padding: 0.1rem 0.3rem;
+}
+body.pinned {
+  padding-right: 510px;
+}
+body.pinned .layout {
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 1.5rem;
+}
+@media (max-width: 1100px) {
+  body.pinned {
+    padding-right: 0;
+  }
+  #pin-source {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .layout,
+  body.pinned .layout {
+    display: block;
+    padding: 1.2rem;
+  }
+  .masthead {
+    padding: 2rem 1.2rem 1.2rem;
+  }
+  .toc {
+    position: static;
+    max-height: none;
+    margin-bottom: 1.5rem;
+  }
+  .toc summary,
+  .toc a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .toc summary {
+    display: list-item;
+    padding-block: 0.4rem;
+  }
+  body {
+    font-size: 16px;
+  }
+  h2 {
+    font-size: clamp(1.15rem, 4.5vw, 1.35rem);
+  }
+  #source-panel {
+    max-height: 75vh;
+  }
+}
+@media (max-width: 760px), (pointer: coarse) {
+  a.ts,
+  .citation-toggle,
+  .transcript-time {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

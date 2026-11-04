@@ -1,0 +1,371 @@
+import { chromium } from "playwright-core";
+import { execFile } from "node:child_process";
+import { constants } from "node:fs";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+} from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { AppError, containedFile, regularFile } from "./io.mjs";
+import { htmlDocument } from "./rendering.mjs";
+import { isolatedEnvironment, killGroup } from "./runtime.mjs";
+import { statements } from "./validation.mjs";
+
+// Standard Windows system locations Chrome reads at startup; none carries credentials.
+const WINDOWS_SYSTEM = [
+  "windir",
+  "ComSpec",
+  "PATHEXT",
+  "SystemDrive",
+  "ProgramData",
+  "ProgramFiles",
+  "ProgramFiles(x86)",
+  "ProgramW6432",
+  "CommonProgramFiles",
+  "CommonProgramFiles(x86)",
+  "CommonProgramW6432",
+  "NUMBER_OF_PROCESSORS",
+  "PROCESSOR_ARCHITECTURE",
+  "OS",
+];
+/**
+ * The browser gets the same fresh environment as every other local tool (no ambient
+ * credentials, proxies or runtime options), with its home and temp in a private directory.
+ * On Windows the standard system-location variables are kept and the per-user data
+ * folders point into that directory too.
+ */
+function browserEnvironment(home) {
+  const env = isolatedEnvironment(home);
+  if (process.platform !== "win32") return env;
+  const lookup = new Map(
+    Object.keys(process.env).map((key) => [key.toLowerCase(), key]),
+  );
+  for (const name of WINDOWS_SYSTEM) {
+    const key = lookup.get(name.toLowerCase());
+    if (key && process.env[key]) env[name] = process.env[key];
+  }
+  env.APPDATA = path.join(home, "AppData", "Roaming");
+  env.LOCALAPPDATA = path.join(home, "AppData", "Local");
+  return env;
+}
+
+/** Settle within `ms`: "ok", "error" or "timeout"; a late result is ignored. */
+async function settleWithin(promise, ms) {
+  let timer;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise).then(
+        () => "ok",
+        () => "error",
+      ),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function run(file, args, options) {
+  return new Promise((resolve) => {
+    execFile(file, args, options, (error, stdout) =>
+      resolve(error ? null : String(stdout)),
+    );
+  });
+}
+
+/**
+ * Force-stop the PDF browser started with `profile` as its user-data directory, with every
+ * process it started. Only processes whose command line contains this private, randomly
+ * named directory are touched. Returns false when the processes could not be listed.
+ */
+export async function stopBrowserByProfile(profile) {
+  if (process.platform === "win32") {
+    const root = process.env.SystemRoot;
+    const env = { SystemRoot: root };
+    const pattern = profile.replaceAll("'", "''");
+    const listing = await run(
+      path.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('${pattern}') } | ForEach-Object { $_.ProcessId }`,
+      ],
+      { env, cwd: root, timeout: 15000, windowsHide: true },
+    );
+    if (listing === null) return false;
+    for (const pid of listing.split(/\s+/).filter((id) => /^\d+$/.test(id)))
+      await run(
+        path.join(root, "System32", "taskkill.exe"),
+        ["/PID", pid, "/T", "/F"],
+        { env, cwd: root, timeout: 5000, windowsHide: true },
+      );
+    return true;
+  }
+  const listing = await run("/bin/ps", ["-axo", "pid=,pgid=,args="], {
+    env: {},
+    timeout: 5000,
+  });
+  if (listing === null) return false;
+  for (const line of listing.split("\n")) {
+    const match = /^\s*(\d+)\s+(\d+)\s(.*)$/.exec(line);
+    if (match && match[3].includes(`--user-data-dir=${profile}`)) {
+      // Playwright starts the browser as a process-group leader, so the group holds every
+      // helper process too.
+      killGroup(Number(match[2]));
+      try {
+        process.kill(Number(match[1]), "SIGKILL");
+      } catch {
+        // Already gone with its group.
+      }
+    }
+  }
+  return true;
+}
+
+export async function pdfDocument(
+  bundle,
+  { browserExecutable, fontDir, deadlineMs = 120000, closeGraceMs = 10000 } = {},
+) {
+  if (!browserExecutable)
+    throw new AppError(
+      "PDF_RUNTIME_MISSING",
+      "Provide --browser-executable for an installed Chromium browser. Nothing was downloaded.",
+      3,
+    );
+  let executablePath;
+  try {
+    // Explicit host-selected tools may use normal package-manager aliases. Resolve
+    // once and launch that file; report assets still obey their non-symlink rules.
+    executablePath = await realpath(browserExecutable);
+    await regularFile(executablePath, Number.MAX_SAFE_INTEGER);
+    await access(executablePath, constants.X_OK);
+  } catch {
+    throw new AppError(
+      "PDF_RUNTIME_MISSING",
+      "The specified browser executable is unavailable.",
+      3,
+    );
+  }
+  const assets = new Map();
+  let fontCss = "",
+    bytes = 0;
+  // Same rule as the HTML output: every cited frame (figure or inline citation) is printable.
+  const referenced = new Set([
+    ...bundle.report.sections
+      .flatMap((s) => s.blocks)
+      .filter((b) => b.type === "figure")
+      .map((b) => b.frameId),
+    ...statements(bundle.report).flatMap((s) =>
+      s.citations.filter((c) => c.kind === "frame").map((c) => c.id),
+    ),
+  ]);
+  for (const frame of bundle.evidence.frames.filter((f) =>
+    referenced.has(f.id),
+  )) {
+    const file = await containedFile(
+      bundle.workDir,
+      frame.assetPath,
+      20 * 1024 * 1024,
+    );
+    const body = await readFile(file);
+    bytes += body.length;
+    assets.set(`/${frame.assetPath}`, {
+      body,
+      contentType: frame.assetPath.endsWith(".png")
+        ? "image/png"
+        : "image/jpeg",
+    });
+  }
+  if (fontDir) {
+    const fonts = (await readdir(fontDir))
+      .filter((name) => /\.(ttf|otf|woff2?)$/i.test(name))
+      .sort();
+    if (!fonts.length || fonts.length > 16)
+      throw new AppError(
+        "FONT_UNAVAILABLE",
+        "The specified font directory needs 1–16 TTF, OTF or WOFF fonts.",
+        3,
+      );
+    for (const [index, filename] of fonts.entries()) {
+      const file = await containedFile(fontDir, filename, 32 * 1024 * 1024);
+      const body = await readFile(file);
+      bytes += body.length;
+      const url = `/fonts/font-${index}${path.extname(filename).toLowerCase()}`;
+      assets.set(url, { body, contentType: "application/octet-stream" });
+      fontCss += `@font-face { font-family: ReportFont${index}; src: url('${url}'); font-display: block; }\n`;
+    }
+    fontCss += `body { font-family: ${fonts.map((_, index) => `ReportFont${index}`).join(",")}, sans-serif; }`;
+  }
+  if (bytes > 128 * 1024 * 1024)
+    throw new AppError(
+      "RESOURCE_LIMIT",
+      "Print assets exceed the memory budget.",
+    );
+  let context,
+    home,
+    output,
+    failure,
+    timedOut = false,
+    launching = false;
+  async function render() {
+    launching = true;
+    context = await chromium.launchPersistentContext(
+      path.join(home, "profile"),
+      {
+        executablePath,
+        headless: true,
+        chromiumSandbox: true,
+        // Printing needs no GPU acceleration. In macOS virtual machines Chrome's Metal
+        // work can fault the paravirtual GPU until the kernel ignores Chrome's GPU
+        // process, which freezes rendering and the export with it.
+        args: ["--disable-gpu"],
+        timeout: 30000,
+        env: browserEnvironment(home),
+        downloadsPath: path.join(home, "downloads"),
+        tracesDir: path.join(home, "traces"),
+        javaScriptEnabled: false,
+        serviceWorkers: "block",
+      },
+    );
+    launching = false;
+    const html = htmlDocument(bundle, [], [], { print: true, fontCss });
+    await context.route("**/*", async (route) => {
+      let url;
+      try {
+        url = new URL(route.request().url());
+      } catch {
+        await route.abort();
+        return;
+      }
+      if (url.origin !== "https://video-report.invalid") {
+        await route.abort();
+        return;
+      }
+      if (url.pathname === "/index.html") {
+        await route.fulfill({
+          contentType: "text/html; charset=utf-8",
+          body: html,
+        });
+        return;
+      }
+      const asset = assets.get(url.pathname);
+      if (asset) await route.fulfill(asset);
+      else await route.abort();
+    });
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
+    await page.goto("https://video-report.invalid/index.html", {
+      waitUntil: "load",
+      timeout: 30000,
+    });
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      for (const image of document.images) {
+        image.loading = "eager";
+        await image.decode();
+      }
+    });
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: true,
+      tagged: true,
+      outline: true,
+      timeout: 30000,
+    });
+    if (pdf.length < 100 || pdf.subarray(0, 5).toString() !== "%PDF-")
+      throw new AppError("EXPORT_FAILED", "Browser did not produce a PDF.");
+    return pdf;
+  }
+  try {
+    // Like every other local tool, the browser gets a fresh environment (no ambient
+    // credentials, proxies or runtime options); its home, temp, profile, downloads and
+    // traces all live in one private directory that is removed afterwards.
+    home = await mkdtemp(path.join(os.tmpdir(), "vs-pdf-"));
+    if (process.platform === "win32")
+      for (const dir of ["Roaming", "Local"])
+        await mkdir(path.join(home, "AppData", dir), { recursive: true });
+    // One deadline covers launch, loading, fonts/images and printing. A browser that
+    // stops responding can leave individual calls unresolved despite their timeouts.
+    const work = render();
+    work.catch(() => {});
+    let timer;
+    const expired = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        reject(
+          new AppError(
+            "EXPORT_TIMEOUT",
+            `PDF rendering did not finish within ${Math.round(deadlineMs / 1000)} s, so the browser was stopped. HTML and Markdown are unaffected.`,
+          ),
+        );
+      }, deadlineMs);
+    });
+    try {
+      output = await Promise.race([work, expired]);
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (error) {
+    failure =
+      error instanceof AppError
+        ? error
+        : new AppError(
+            "EXPORT_FAILED",
+            "PDF rendering failed. Check the explicitly selected browser, sandbox support, local fonts and images.",
+          );
+    // A separate probe can suggest nesting, but cannot prove why Chrome failed. Do not
+    // diagnose temp creation/rendering failures, or replace the primary error if probing fails.
+    if (
+      !(error instanceof AppError) &&
+      process.platform === "darwin" &&
+      launching
+    ) {
+      try {
+        const { confinedRuntimeStatus } = await import("./ingest-worker.mjs");
+        if ((await confinedRuntimeStatus()).reason === "nested-sandbox")
+          failure.message =
+            "PDF browser launch failed and a sandbox probe was refused. A host sandbox (for example Codex workspace-write) may be preventing Chrome's own sandbox from starting. Try export outside the host sandbox without disabling Chrome's sandbox; HTML and Markdown are unaffected.";
+      } catch {
+        // A diagnostic must not obscure the export failure.
+      }
+    }
+  } finally {
+    const cleanup = [];
+    const closed = context
+      ? await settleWithin(context.close(), closeGraceMs)
+      : "ok";
+    // A browser that did not close (or was still starting at the deadline) is stopped
+    // with every process it started, so the export cannot outlive its deadline.
+    if (
+      (closed !== "ok" || timedOut) &&
+      !(home && (await stopBrowserByProfile(path.join(home, "profile"))))
+    )
+      cleanup.push("The PDF browser could not be confirmed closed.");
+    if (home) {
+      try {
+        await rm(home, { recursive: true, force: true, maxRetries: 2 });
+      } catch {
+        // Only our random basename is reported, never an absolute home path or raw error.
+        cleanup.push(
+          `Private PDF data may remain in the system temporary directory named ${path.basename(home)}; remove it after confirming the browser has stopped.`,
+        );
+      }
+    }
+    if (cleanup.length) {
+      if (failure) failure.message += ` ${cleanup.join(" ")}`;
+      else failure = new AppError("PDF_CLEANUP_FAILED", cleanup.join(" "));
+    }
+  }
+  if (failure) throw failure;
+  return output;
+}
