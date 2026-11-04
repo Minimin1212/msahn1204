@@ -25,7 +25,16 @@
 
 전체 파이프라인은 단계마다 멈추고 사용자의 확인을 받습니다.
 
+## 논문용 그림 만들기 (scientific-figure-making 스킬)
+
+`.claude/skills/scientific-figure-making/`에 [figures4papers](https://github.com/ChenLiu-1996/figures4papers)의 그림 스킬이 들어 있습니다.
+matplotlib로 학술지 수준의 막대그래프, 추세선, 히트맵, 레이더 차트, 여러 패널 그림을 만들어 줍니다.
+
+예시 요청:
+- "이 데이터로 모델 성능 비교 막대그래프를 논문용으로 그려줘. PNG와 PDF로 저장해줘"
+- "월별 추이를 논문용 선 그래프로 그려줘"
+
 ## 참고
 
-- 라이선스: CC BY-NC 4.0 (비상업적 이용만 가능)
+- 라이선스: ARS와 scientific-figure-making 모두 CC BY-NC 4.0 (비상업적 이용만 가능)
 - 한국어 문서: https://github.com/Imbad0202/academic-research-skills/blob/main/README.ko-KR.md
