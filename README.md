@@ -74,7 +74,17 @@ AI가 쓴 티가 나는 글(`~가 아니라 ~이다` 식의 대비, 한 줄짜�
 예시: `/humanizer` 다음에 글을 붙여넣기, 내 예전 글을 함께 주면 그 말투에 맞춰 줍니다.
 영어 글에 가장 잘 맞고, 한국어는 같은 종류의 패턴만 비슷하게 잡아냅니다.
 
+## 한국어 글 윤문 (/humanize-korean)
+
+[nathankim0/humanize-korean](https://github.com/nathankim0/humanize-korean)의 스킬이 `.claude/skills/humanize-korean/`에 들어 있습니다.
+한국어 글의 사실과 의미는 그대로 두고 AI 티, 번역투, 맞춤법, 군더더기, 경어법을 다듬습니다. 모드는 AI 티 제거, 전체 윤문, 교정·교열, 문장 다듬기, 번역 윤문, 문체 변환, AI 신호 진단, 공동 교정의 8가지입니다.
+AI 탐지기 회피가 목표가 아니며, 가짜 경험이나 수치, 일부러 낸 오탈자로 사람 글처럼 위장하지 않습니다.
+긴 글은 문장 단위 작업표로 나눠 빠짐없이 처리하며, 이 과정에는 Python 3이 필요합니다.
+
+예시: `/humanize-korean` 다음에 글을 붙여넣기, "보수적으로 맞춤법만 봐줘", "존댓말로 바꿔줘"
+영어 글은 `/humanizer`, 한국어 글은 `/humanize-korean`을 쓰세요.
+
 ## 참고
 
-- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0, grill-me와 humanizer는 MIT
+- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0, grill-me, humanizer, humanize-korean은 MIT
 - 한국어 문서: https://github.com/Imbad0202/academic-research-skills/blob/main/README.ko-KR.md
