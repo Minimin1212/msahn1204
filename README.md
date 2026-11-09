@@ -57,7 +57,15 @@ matplotlib로 학술지 수준의 막대그래프, 추세선, 히트맵, 레이�
 - `draft-content`: 뉴스레터, 블로그, SNS 글의 초안과 제목 후보를 만듭니다.
 - `content-creation`: 위 초안 작성의 채널별 형식 가이드입니다 (자동으로 참고).
 
+## 계획 점검 (/grill-me)
+
+[mattpocock/skills](https://github.com/mattpocock/skills)의 `grill-me`와 `grilling` 스킬이 `.claude/skills/`에 들어 있습니다.
+`/grill-me`를 입력하고 점검받고 싶은 계획을 말하면, Claude가 의사결정 가지를 하나씩 따라가며 집요하게 질문합니다. 질문마다 Claude의 추천 답이 붙어 있어서 맞으면 "네"라고만 답해도 됩니다.
+모든 가지를 살펴볼 때까지 계속되고, 합의했다고 확인하기 전에는 실행하지 않습니다.
+
+예시: `/grill-me 내 논문의 연구 설계`, `/grill-me 뉴스레터 월간 발행 계획`
+
 ## 참고
 
-- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0
+- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0, grill-me는 MIT
 - 한국어 문서: https://github.com/Imbad0202/academic-research-skills/blob/main/README.ko-KR.md
