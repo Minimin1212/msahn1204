@@ -84,7 +84,20 @@ AI 탐지기 회피가 목표가 아니며, 가짜 경험이나 수치, 일부�
 예시: `/humanize-korean` 다음에 글을 붙여넣기, "보수적으로 맞춤법만 봐줘", "존댓말로 바꿔줘"
 영어 글은 `/humanizer`, 한국어 글은 `/humanize-korean`을 쓰세요.
 
+## 글쓰기 진단과 재작성 (sepia)
+
+[Nanako0129/sepia](https://github.com/Nanako0129/sepia)의 스킬 6개가 `.claude/skills/`에 들어 있습니다 (`sepia`와 `sepia-*` 다섯 개는 함께 있어야 동작합니다).
+AI가 쓴 티가 나는 글을 고칩니다. 소설은 이야기 구조부터, 릴리스 노트·PR 답글·사고 보고서·티켓·기술 글·장문 저널리즘은 글 종류별 규칙으로 다룹니다.
+
+- `/sepia-review`: 고치지 않고 AI 티만 진단
+- `/sepia-refactor`: 최소한만 고침
+- `/sepia-recreate`: 전체를 다시 씀
+- `/sepia-write`: 새 글을 씀
+- `/sepia-hemingway`: 헤밍웨이 문체로 씀
+
+영어와 중국어 중심입니다. 한국어 규칙은 들어 있지 않으니 한국어 글은 `/humanize-korean`을 쓰세요.
+
 ## 참고
 
-- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0, grill-me, humanizer, humanize-korean은 MIT
+- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0, grill-me, humanizer, humanize-korean, sepia는 MIT
 - 한국어 문서: https://github.com/Imbad0202/academic-research-skills/blob/main/README.ko-KR.md
