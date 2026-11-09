@@ -47,7 +47,17 @@ matplotlib로 학술지 수준의 막대그래프, 추세선, 히트맵, 레이�
 유튜브, X, Apple Podcasts 링크를 쓰려면 클라우드 환경 설정의 네트워크 허용 도메인에
 `www.youtube.com` 등을 추가해야 합니다.
 
+## 데이터 분석과 글쓰기 보조 (knowledge-work-plugins에서 고른 스킬)
+
+[anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins)에서 외부 서비스 연결이 필요 없는 스킬 5개만 `.claude/skills/`에 넣었습니다.
+
+- `explore-data`: 데이터 파일의 구조, 결측치, 이상값을 먼저 훑어봅니다.
+- `statistical-analysis`: 기술통계, 가설검정, 이상치 탐지 방법을 알려 줍니다 (자동으로 참고).
+- `validate-data`: 분석을 공유하거나 투고하기 전에 방법과 편향, 계산 오류를 점검합니다.
+- `draft-content`: 뉴스레터, 블로그, SNS 글의 초안과 제목 후보를 만듭니다.
+- `content-creation`: 위 초안 작성의 채널별 형식 가이드입니다 (자동으로 참고).
+
 ## 참고
 
-- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT
+- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0
 - 한국어 문서: https://github.com/Imbad0202/academic-research-skills/blob/main/README.ko-KR.md
