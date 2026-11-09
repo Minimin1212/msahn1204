@@ -65,7 +65,16 @@ matplotlib로 학술지 수준의 막대그래프, 추세선, 히트맵, 레이�
 
 예시: `/grill-me 내 논문의 연구 설계`, `/grill-me 뉴스레터 월간 발행 계획`
 
+## 문체 다듬기 (/humanizer)
+
+[blader/humanizer](https://github.com/blader/humanizer)의 스킬이 `.claude/skills/humanizer/`에 들어 있습니다.
+AI가 쓴 티가 나는 글(`~가 아니라 ~이다` 식의 대비, 한 줄짜리 마무리 문장, 억지로 맞춘 3개 나열, 부풀린 표현 등)을 찾아서, 내용은 그대로 두고 글쓴이의 말투로 고쳐 줍니다.
+문체 편집 도구이고, AI 탐지기를 피하는 것은 목표가 아닙니다. 논문에 AI를 썼다면 투고처 규정에 따라 `/ars-disclosure`로 공개 문구를 만드세요.
+
+예시: `/humanizer` 다음에 글을 붙여넣기, 내 예전 글을 함께 주면 그 말투에 맞춰 줍니다.
+영어 글에 가장 잘 맞고, 한국어는 같은 종류의 패턴만 비슷하게 잡아냅니다.
+
 ## 참고
 
-- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0, grill-me는 MIT
+- 라이선스: ARS와 scientific-figure-making은 CC BY-NC 4.0 (비상업적 이용만 가능), playback-notes는 MIT, knowledge-work-plugins 스킬은 Apache 2.0, grill-me와 humanizer는 MIT
 - 한국어 문서: https://github.com/Imbad0202/academic-research-skills/blob/main/README.ko-KR.md
