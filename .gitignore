@@ -1,2 +1,6 @@
 node_modules/
 .playback-notes/
+
+# Unpublished manuscript files (public repo): keep out of git
+paper/original/
+paper/revised/
