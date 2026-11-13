@@ -25,6 +25,8 @@
 
 전체 파이프라인은 단계마다 멈추고 사용자의 확인을 받습니다.
 
+클라우드 세션처럼 플러그인이 설치되지 않는 환경을 위해, ARS의 다섯 스킬(`academic-paper`, `academic-paper-reviewer`, `academic-pipeline`, `deep-research`, `sr-screener`)을 `.claude/skills/`에 프로젝트 스킬로도 넣어 두었습니다(공유 자료는 `.claude/shared/`). 이 경우 `/ars-…` 명령은 생기지 않으니 "academic-paper 스킬의 revision 모드로 해줘"처럼 스킬과 모드 이름으로 요청하세요. 출처와 버전은 각 스킬 폴더의 `SOURCE.md`에 있습니다.
+
 ## 논문용 그림 만들기 (scientific-figure-making 스킬)
 
 `.claude/skills/scientific-figure-making/`에 [figures4papers](https://github.com/ChenLiu-1996/figures4papers)의 그림 스킬이 들어 있습니다.
