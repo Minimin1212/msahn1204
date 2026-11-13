@@ -48,9 +48,9 @@ def iter_paragraphs(d):
                 yield from cell.paragraphs
 
 
-def apply(path_in, path_out, highlight):
+def apply(path_in, path_out, highlight, edits=EDITS):
     d = docx.Document(path_in)
-    for old, new in EDITS:
+    for old, new in edits:
         # common prefix/suffix so only the changed span is marked
         i = 0
         while i < min(len(old), len(new)) and old[i] == new[i]:
