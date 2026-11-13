@@ -4,3 +4,7 @@ node_modules/
 # Unpublished manuscript files (public repo): keep out of git
 paper/original/
 paper/revised/
+paper/first_submission/
+paper/evidence/
+paper/study/
+__pycache__/
